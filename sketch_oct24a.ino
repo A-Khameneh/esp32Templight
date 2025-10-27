@@ -1,22 +1,11 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <HTTPClient.h>
 
 const char* ssid = "Abdollahian";
 const char* password = "8805721740000";
 
-const int potPin = 34; // پین پتانسیومتر
-WebServer server(80);  // پورت پیش‌فرض HTTP
-
-void handleRoot() {
-  int value = analogRead(potPin);
-  
-  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Potentiometer</title></head><body>";
-  html += "<h1>مقدار پتانسیومتر:</h1>";
-  html += "<h2>" + String(value) + "</h2>";
-  html += "</body></html>";
-  
-  server.send(200, "text/html", html);
-}
+const int potPin = 34;
+const char* serverURL = "https://myflower-daxz.onrender.com/flower";
 
 void setup() {
   Serial.begin(115200);
@@ -28,15 +17,38 @@ void setup() {
     Serial.print(".");
   }
 
-  Serial.println("\nوصل شد!");
+  Serial.println("\n✅ وصل شد!");
   Serial.print("IP دستگاه: ");
   Serial.println(WiFi.localIP());
-
-  server.on("/", handleRoot);
-  server.begin();
-  Serial.println("وب‌سرور فعال شد");
 }
 
 void loop() {
-  server.handleClient();
+  if (WiFi.status() == WL_CONNECTED) {
+    int value = analogRead(potPin);
+
+    HTTPClient http;
+    http.begin(serverURL);
+    http.addHeader("Content-Type", "application/json");
+
+    String payload = "{\"sensor_value\": " + String(value) + "}";
+
+    int responseCode = http.POST(payload);
+
+    Serial.print("📤 کد پاسخ سرور: ");
+    Serial.println(responseCode);
+
+    if (responseCode > 0) {
+      String response = http.getString();
+      Serial.println("📥 پاسخ دریافتی از سرور:");
+      Serial.println(response);
+    } else {
+      Serial.println("❌ ارسال ناموفق");
+    }
+
+    http.end();
+  } else {
+    Serial.println("⚠️ اتصال به WiFi قطع شده");
+  }
+
+  delay(5000); // هر ۵ ثانیه ارسال کن
 }
